@@ -83,7 +83,7 @@ class Memory_Test( Elaboratable ):
       with m.State( 'PROCESS' ):
         # Unless otherwise specified, increment the PC address
         # and proceed back to the 'FETCH' state.
-        m.d.sync += self.pc.eq( self.pc + 1 )
+        m.d.sync += self.pc.eq( self.pc + 4 )
         m.next = 'FETCH'
         # If the word is 0 or -1, reset PC address to 0 instead of
         # incrementing it. 0xFFFFFFFF can indicate an error or
