@@ -1,6 +1,6 @@
 from nmigen import *
 from math import ceil, log2
-from nmigen.back.pysim import *
+from nmigen.sim import *
 from nmigen_soc.memory import *
 from nmigen_soc.wishbone import *
 from nmigen_boards.resources import *
@@ -14,8 +14,8 @@ class DummySPI():
   def __init__( self ):
     self.cs   = DummyPin( 'cs' )
     self.clk  = DummyPin( 'clk' )
-    self.mosi = DummyPin( 'mosi' )
-    self.miso = DummyPin( 'miso' )
+    self.copi = DummyPin( 'copi' )
+    self.cipo = DummyPin( 'cipo' )
 
 # Core SPI Flash "ROM" module.
 class SPI_ROM( Elaboratable, Interface ):
@@ -75,7 +75,7 @@ class SPI_ROM( Elaboratable, Interface ):
       with m.State( "SPI_POWERUP" ):
         m.d.sync += self.dc.eq( self.dc + 1 )
         m.d.comb += self.spi.clk.o.eq( ~ClockSignal( "sync" ) )
-        m.d.comb += self.spi.mosi.o.eq( 0xAB >> ( 7 - self.dc ) )
+        m.d.comb += self.spi.copi.o.eq( 0xAB >> ( 7 - self.dc ) )
         # Wait a few extra cycles after ending the transaction to
         # allow the chip to wake up from sleep mode.
         # TODO: Time this based on clock frequency?
@@ -108,8 +108,8 @@ class SPI_ROM( Elaboratable, Interface ):
       # 'Send read command' state: transmits the 0x03 'read' command
       # followed by the desired 24-bit address. (Encoded in 'spio')
       with m.State( "SPI_TX" ):
-        # Set the 'mosi' pin to the next value and increment 'dc'.
-        m.d.comb += self.spi.mosi.o.eq( self.spio >> self.dc )
+        # Set the 'copi' pin to the next value and increment 'dc'.
+        m.d.comb += self.spi.copi.o.eq( self.spio >> self.dc )
         m.d.sync += self.dc.eq( self.dc - 1 )
         m.d.comb += self.spi.clk.o.eq( ~ClockSignal( "sync" ) )
         # Move to 'receive data' state once 32 bits have elapsed.
@@ -123,17 +123,17 @@ class SPI_ROM( Elaboratable, Interface ):
         with m.Else():
           m.next = "SPI_TX"
       # 'Receive data' state: continue the clock signal and read
-      # the 'miso' pin on rising edges.
+      # the 'cipo' pin on rising edges.
       # You can keep the clock signal going to receive as many bytes
       # as you want, but this implementation only fetches one word.
       # Bytes are received in 'little-endian' format, MSbit-first.
       with m.State( "SPI_RX" ):
-        # Simulate the 'miso' pin value for tests.
+        # Simulate the 'cipo' pin value for tests.
         if platform is None:
-          m.d.comb += self.spi.miso.i.eq( ( self.data[ self.adr >> 2 ] >> self.dc ) & 0b1 )
+          m.d.comb += self.spi.cipo.i.eq( ( self.data[ self.adr >> 2 ] >> self.dc ) & 0b1 )
         m.d.sync += [
           self.dc.eq( self.dc - 1 ),
-          self.dat_r.eq( self.dat_r | ( self.spi.miso.i << self.dc ) )
+          self.dat_r.eq( self.dat_r | ( self.spi.cipo.i << self.dc ) )
         ]
         m.d.comb += self.spi.clk.o.eq( ~ClockSignal( "sync" ) )
         # Assert 'ack' signal and move back to 'waiting' state
@@ -191,11 +191,11 @@ def spi_read_word( srom, virt_addr, phys_addr, simword, end_wait ):
   # Then the 32-bit read command is sent; two ticks per bit.
   for i in range( 32 ):
     yield Settle()
-    dout = yield srom.spi.mosi.o
+    dout = yield srom.spi.copi.o
     spi_rom_ut( "SPI Read Cmd  [%d]"%i, dout, ( spcmd >> ( 31 - i ) ) & 0b1 )
     yield Tick()
   # The following 32 bits should return the word. Simulate
-  # the requested word arriving on the MISO pin, MSbit first.
+  # the requested word arriving on the cipo pin, MSbit first.
   # (Data starts getting returned on the falling clock edge
   #  immediately following the last rising-edge read.)
   i = 7
@@ -257,7 +257,8 @@ if __name__ == "__main__":
   dut = SPI_ROM( off, off + 1024, [ 0x89ABCDEF, 0x0C0FFEE0, 0xBABABABA, 0xABACADAB, 0xDEADFACE, 0x12345678, 0x87654321, 0xDEADBEEF, 0xDEADBEEF ] )
 
   # Run the SPI ROM tests.
-  with Simulator( dut, vcd_file = open( 'spi_rom.vcd', 'w' ) ) as sim:
+  sim = Simulator(dut)
+  with sim.write_vcd('spi_rom.vcd'):
     def proc():
       # Wait until the 'release power-down' command is sent.
       # TODO: test that startup condition.

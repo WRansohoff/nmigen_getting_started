@@ -1,5 +1,5 @@
 from nmigen import *
-from nmigen.back.pysim import *
+from nmigen.sim import *
 from nmigen_boards.upduino_v2 import *
 from nmigen_soc.wishbone import *
 from nmigen_soc.memory import *
@@ -132,7 +132,8 @@ if __name__ == "__main__":
       BLU_ON, DELAY( 5 ), GRN_ON, DELAY( 5 ), BLU_OFF, RED_ON,
       DELAY( 10 ), RED_OFF, DELAY( 5 ), GRN_OFF, DELAY( 5 ), RETURN
     ] ) )
-    with Simulator( dut, vcd_file = open( 'test.vcd', 'w' ) ) as sim:
+    sim = Simulator(dut)
+    with sim.write_vcd('test.vcd'):
       # Simulate running for 200 clock cycles.
       def proc():
         for i in range( 200 ):
