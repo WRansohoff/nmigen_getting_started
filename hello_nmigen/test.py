@@ -13,11 +13,12 @@ class TestModule( Elaboratable ):
       m.d.sync += self.count.eq( 0 )
     return m
 
-from nmigen.back.pysim import *
+from nmigen.sim import *
 
 if __name__ == "__main__":
   dut = TestModule()
-  with Simulator( dut, vcd_file = open( 'test.vcd', 'w' ) ) as sim:
+  sim = Simulator(dut)
+  with sim.write_vcd('test.vcd'):
     def proc():
       # Run for 50 clock cycles, and check that the 'count' signal
       # equals the number of elapsed cycles. This should start
