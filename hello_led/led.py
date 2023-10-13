@@ -1,4 +1,4 @@
-from nmigen import *
+from amaranth import *
 
 class TestLEDModule( Elaboratable ):
   def __init__( self ):
@@ -18,8 +18,10 @@ class TestLEDModule( Elaboratable ):
 
     return m
 
-from nmigen_boards.upduino_v2 import *
+from amaranth_boards.upduino_v2 import *
 
 if __name__ == "__main__":
   dut = TestLEDModule()
-  UpduinoV2Platform().build( dut )
+  p = UpduinoV2Platform()
+  p.hfosc_div = 3
+  p.build( dut )
