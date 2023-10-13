@@ -1,9 +1,9 @@
-from nmigen import *
+from amaranth import *
 from math import ceil, log2
-from nmigen.back.pysim import *
-from nmigen_soc.memory import *
-from nmigen_soc.wishbone import *
-from nmigen_boards.resources import *
+from amaranth.sim import *
+from amaranth_soc.memory import *
+from amaranth_soc.wishbone import *
+from amaranth_boards.resources import *
 
 # (Dummy SPI resources for simulated tests)
 class DummyPin():
@@ -35,7 +35,7 @@ class SPI_ROM( Elaboratable, Interface ):
 
     # Initialize Wishbone bus interface.
     Interface.__init__( self, addr_width = ceil( log2( self.dlen + 1 ) ), data_width = 32 )
-    self.memory_map = MemoryMap( addr_width = self.addr_width, data_width = self.data_width, alignment = 0 )
+    #self.memory_map = MemoryMap( addr_width = self.addr_width, data_width = self.data_width, alignment = 0 )
 
     # Backing data store for a test ROM image. Not used when
     # the module is built for real hardware.
@@ -75,7 +75,7 @@ class SPI_ROM( Elaboratable, Interface ):
       with m.State( "SPI_POWERUP" ):
         m.d.sync += self.dc.eq( self.dc + 1 )
         m.d.comb += self.spi.clk.o.eq( ~ClockSignal( "sync" ) )
-        m.d.comb += self.spi.mosi.o.eq( 0xAB >> ( 7 - self.dc ) )
+        m.d.comb += self.spi.mosi.o.eq( 0xAB >> ( 7 - self.dc ).as_unsigned() )
         # Wait a few extra cycles after ending the transaction to
         # allow the chip to wake up from sleep mode.
         # TODO: Time this based on clock frequency?
@@ -257,7 +257,8 @@ if __name__ == "__main__":
   dut = SPI_ROM( off, off + 1024, [ 0x89ABCDEF, 0x0C0FFEE0, 0xBABABABA, 0xABACADAB, 0xDEADFACE, 0x12345678, 0x87654321, 0xDEADBEEF, 0xDEADBEEF ] )
 
   # Run the SPI ROM tests.
-  with Simulator( dut, vcd_file = open( 'spi_rom.vcd', 'w' ) ) as sim:
+  sim = Simulator(dut)
+  with sim.write_vcd('spi_rom.vcd'):
     def proc():
       # Wait until the 'release power-down' command is sent.
       # TODO: test that startup condition.

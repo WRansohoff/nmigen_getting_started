@@ -1,8 +1,8 @@
-from nmigen import *
+from amaranth import *
 from math import ceil, log2
-from nmigen.back.pysim import *
-from nmigen_soc.memory import *
-from nmigen_soc.wishbone import *
+from amaranth.sim import *
+from amaranth_soc.memory import *
+from amaranth_soc.wishbone import *
 
 # Simulated read-only memory module.
 class ROM( Elaboratable, Interface ):
@@ -18,9 +18,9 @@ class ROM( Elaboratable, Interface ):
     Interface.__init__( self,
                         data_width = 32,
                         addr_width = ceil( log2( self.size + 1 ) ) )
-    self.memory_map = MemoryMap( data_width = self.data_width,
-                                 addr_width = self.addr_width,
-                                 alignment = 0 )
+    #self.memory_map = MemoryMap( data_width = self.data_width,
+    #                             addr_width = self.addr_width,
+    #                             alignment = 0 )
 
   def elaborate( self, platform ):
     m = Module()
@@ -66,7 +66,8 @@ if __name__ == "__main__":
                0x0C0FFEE0, 0xDEC0FFEE,
                0xFEEBEEDE ] )
   # Run the simulation.
-  with Simulator( dut, vcd_file = open( 'rom.vcd', 'w' ) ) as sim:
+  sim = Simulator(dut)
+  with sim.write_vcd('rom.vcd'):
     def proc():
       # Test reads.
       yield from rom_read_ut( dut, 0, 0x01234567 )
